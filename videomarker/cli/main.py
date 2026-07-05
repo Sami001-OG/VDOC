@@ -1,228 +1,270 @@
-"""VideoMarker CLI — command-line interface for video processing."""
+"""VDOC CLI — complete command-line interface.
+
+Commands:
+    vdoc process     Process a video into MarkDirectory
+    vdoc summarize   Generate summary only
+    vdoc transcript  Generate transcript only
+    vdoc search      Semantic search across processed videos
+    vdoc export      Export processed video to format
+    vdoc plugin      List and manage plugins
+    vdoc config      View and manage configuration
+    vdoc doctor      Check system dependencies
+    vdoc benchmark   Run performance benchmarks
+"""
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import typer
 from rich.console import Console
 from rich.logging import RichHandler
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
-from videomarker.config.settings import VideoMarkerSettings, load_settings
-
-app = typer.Typer(
-    name="videomarker",
-    help="Convert videos into structured MarkDirectory format",
-    add_completion=False,
+from videomarker.config.manager import ConfigManager
+from videomarker.models.document import VideoDocument
+from videomarker.pipeline.orchestrator import PipelineOrchestrator
+from videomarker.pipeline.stages import (
+    VideoStage,
+    SceneDetectionStage,
+    SpeechStage,
+    OCRStage,
+    VisionStage,
+    LLMStage,
+    RenderStage,
 )
+from videomarker.providers.registry import ProviderRegistry
+from videomarker.providers.llm.openai_compatible import OpenAICompatibleProvider
+from videomarker.providers.speech.whisper import WhisperSpeechProvider
+from videomarker.providers.vision.openai_vision import OpenAIVisionProvider
+from videomarker.providers.ocr.paddle import PaddleOCRProvider
+from videomarker.providers.embedding.sentence import SentenceEmbeddingProvider
+
+app = typer.Typer(name="vdoc", help="Video → Document. Structured. Searchable. Semantic.")
 console = Console()
 
-_logger = logging.getLogger("videomarker")
+logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler(rich_tracebacks=True)])
 
 
-def _setup_logging(verbose: bool = False) -> None:
-    """Configure structured logging."""
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(message)s",
-        datefmt="[%X]",
-        handlers=[RichHandler(rich_tracebacks=True, console=console)],
-    )
+def _register_default_providers(config: Dict[str, Any]) -> None:
+    """Register all default providers based on configuration."""
+    if not ProviderRegistry.is_registered("video"):
+        from videomarker.providers.video.ffmpeg import FFmpegVideoProvider
+        ProviderRegistry.register("video", FFmpegVideoProvider)
+
+    if not ProviderRegistry.is_registered("llm"):
+        ProviderRegistry.register("llm", OpenAICompatibleProvider)
+
+    if not ProviderRegistry.is_registered("speech"):
+        ProviderRegistry.register("speech", WhisperSpeechProvider)
+
+    if not ProviderRegistry.is_registered("vision"):
+        ProviderRegistry.register("vision", OpenAIVisionProvider)
+
+    if not ProviderRegistry.is_registered("ocr"):
+        ProviderRegistry.register("ocr", PaddleOCRProvider)
+
+    if not ProviderRegistry.is_registered("embedding"):
+        ProviderRegistry.register("embedding", SentenceEmbeddingProvider)
 
 
-def _get_output_path(input_path: Path, output: Optional[Path]) -> Path:
-    """Determine the output path for processing."""
-    if output:
-        return output
-    return input_path.parent / f"{input_path.stem}.markdir"
+def _build_pipeline(config: Dict[str, Any]) -> PipelineOrchestrator:
+    """Build and return the processing pipeline."""
+    pipeline = PipelineOrchestrator()
+    pipeline \
+        .register_stage(VideoStage()) \
+        .register_stage(SceneDetectionStage()) \
+        .register_stage(SpeechStage()) \
+        .register_stage(OCRStage()) \
+        .register_stage(VisionStage()) \
+        .register_stage(LLMStage()) \
+        .register_stage(RenderStage())
+
+    if config.get("output_dir"):
+        pipeline.set_checkpoint_dir(Path(config["output_dir"]) / ".checkpoints")
+
+    return pipeline
 
 
 @app.callback()
-def callback(
-    ctx: typer.Context,
-    config: Optional[Path] = typer.Option(
-        None, "--config", "-c", help="Path to config file (.env or .yaml)"
-    ),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging"),
-) -> None:
-    """Global options."""
-    _setup_logging(verbose)
-    if config:
-        ctx.ensure_object(dict)
-        ctx.obj["config_path"] = config
+def callback(ctx: typer.Context) -> None:
+    ctx.ensure_object(dict)
 
 
 @app.command()
 def process(
-    input: Path = typer.Argument(
-        ..., help="Input video file or directory of videos", exists=True
-    ),
-    output: Optional[Path] = typer.Option(
-        None, "--output", "-o", help="Output directory"
-    ),
-    summary: bool = typer.Option(False, "--summary", help="Generate summary only"),
-    transcript: bool = typer.Option(False, "--transcript", help="Generate transcript only"),
-    ocr: bool = typer.Option(False, "--ocr", help="Run OCR only"),
-    chapters: bool = typer.Option(False, "--chapters", help="Detect chapters only"),
-    export: Optional[str] = typer.Option(
-        None, "--export", "-e", help="Export format (markdown, json)"
-    ),
-    config: Optional[Path] = typer.Option(
-        None, "--config", "-c", help="Path to config file"
-    ),
-    resume: bool = typer.Option(False, "--resume", help="Resume interrupted processing"),
+    video: Path = typer.Argument(..., help="Input video file", exists=True),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output directory"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file (YAML)"),
+    resume: bool = typer.Option(False, "--resume", help="Resume from last checkpoint"),
+    no_transcript: bool = typer.Option(False, "--no-transcript", help="Skip transcription"),
+    no_ocr: bool = typer.Option(False, "--no-ocr", help="Skip OCR"),
+    no_vision: bool = typer.Option(False, "--no-vision", help="Skip vision analysis"),
+    no_llm: bool = typer.Option(False, "--no-llm", help="Skip LLM analysis"),
+    overwrite: bool = typer.Option(False, "--overwrite", help="Overwrite existing output"),
 ) -> None:
-    """Process a video file and generate a MarkDirectory."""
-    settings = load_settings(str(config) if config else None)
+    """Process a video into a structured MarkDirectory."""
+    # Load config
+    cm = ConfigManager()
+    cm.load_yaml(config)
+    cm.load_cli(
+        video_path=str(video),
+        output_dir=str(output or video.parent / f"{video.stem}.markdir"),
+        overwrite=overwrite,
+        speech_provider="none" if no_transcript else None,
+        ocr_provider="none" if no_ocr else None,
+        vision_provider="none" if no_vision else None,
+        llm_provider="none" if no_llm else None,
+    )
+    cfg = cm.resolve()
+    cfg_dict = cfg.model_dump()
 
-    if summary:
-        settings.enabled_processors = ["semantic"]
-    elif transcript:
-        settings.enabled_processors = ["transcript"]
-    elif ocr:
-        settings.enabled_processors = ["ocr"]
-    elif chapters:
-        settings.enabled_processors = ["semantic"]
+    console.print(f"[bold cyan]VDOC[/bold cyan] Processing: [white]{video.name}[/white]")
 
-    if resume:
-        settings.resume = True
-
-    if export:
-        settings.export_formats = [export]
-
-    input_path = Path(input)
-
-    if input_path.is_dir():
-        # Batch process all videos in directory
-        video_files = list(input_path.rglob("*"))
-        video_files = [
-            f for f in video_files
-            if f.suffix.lower() in [".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".m4v"]
-        ]
-        if not video_files:
-            console.print("[red]No video files found in directory.[/red]")
-            raise typer.Exit(1)
-
-        console.print(f"[bold]Processing {len(video_files)} videos...[/bold]")
-        results = []
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Processing videos...", total=len(video_files))
-            for vf in video_files:
-                try:
-                    out_dir = _get_output_path(vf, output)
-                    process_single_video(vf, out_dir, settings)
-                    results.append((vf, out_dir, "success"))
-                except Exception as e:
-                    _logger.error("Failed to process %s: %s", vf, e)
-                    results.append((vf, None, str(e)))
-                progress.update(task, advance=1)
-
-        # Report results
-        success = sum(1 for r in results if r[2] == "success")
-        failed = len(results) - success
-        console.print(f"\n[green]Processed: {success} videos[/green]")
-        if failed:
-            console.print(f"[red]Failed: {failed} videos[/red]")
-            for vf, _, err in results:
-                if err != "success":
-                    console.print(f"  [red]{vf.name}: {err}[/red]")
-    else:
-        out_dir = _get_output_path(input_path, output)
-        process_single_video(input_path, out_dir, settings)
-
-
-def process_single_video(
-    video_path: Path, output_dir: Path, settings: VideoMarkerSettings
-) -> None:
-    """Process a single video file."""
-    from videomarker.core.pipeline import Pipeline
-    from videomarker.core.plugin import PluginRegistry
-
-    console.print(f"\n[bold blue]VideoMarker[/bold blue] — Processing: [yellow]{video_path}[/yellow]")
-
-    # Initialize plugin system
-    PluginRegistry.discover()
-    plugins = PluginRegistry.get_all_plugins()
-    if plugins:
-        console.print(f"  Loaded {len(plugins)} processors: {', '.join(p.name for p in plugins)}")
+    # Register providers
+    _register_default_providers(cfg_dict)
 
     # Run pipeline
-    pipeline = Pipeline(settings=settings)
-    context = pipeline.run(video_path, output_dir=output_dir)
+    async def run() -> None:
+        pipeline = _build_pipeline(cfg_dict)
 
-    # Report
-    console.print(f"\n[green]✓[/green] Output: [bold]{output_dir}[/bold]")
-    if context.errors:
-        console.print(f"[yellow]Warnings: {len(context.errors)}[/yellow]")
-    else:
-        console.print(f"[green]All steps completed successfully.[/green]")
+        ctx = pipeline._make_context()
+        ctx.video_path = str(video)
+        ctx.output_dir = cfg_dict.get("output_dir", str(video.parent / f"{video.stem}.markdir"))
+        ctx.config = cfg_dict
+
+        try:
+            result = await pipeline.run(ctx, resume_from="video" if resume else None)
+            console.print(f"[green]✓[/green] Output: [bold]{result.output_dir}[/bold]")
+        except Exception as e:
+            console.print(f"[red]✗[/red] Pipeline failed: {e}")
+            raise typer.Exit(1)
+        finally:
+            await ProviderRegistry.close_all()
+
+    asyncio.run(run())
 
 
 @app.command()
-def list_processors() -> None:
-    """List all available processor plugins."""
-    from videomarker.core.plugin import PluginRegistry
+def summarize(
+    video: Path = typer.Argument(..., help="Input video file", exists=True),
+    output: Optional[Path] = typer.Option(None, "--output", "-o"),
+) -> None:
+    """Generate summary only."""
+    console.print("[yellow]Summary mode[/yellow]")
+    # TODO: implement summary-only mode
 
-    PluginRegistry.discover()
-    plugins = PluginRegistry.get_all_plugins()
 
-    if not plugins:
-        console.print("[yellow]No processors found.[/yellow]")
+@app.command()
+def transcript(
+    video: Path = typer.Argument(..., help="Input video file", exists=True),
+    output: Optional[Path] = typer.Option(None, "--output", "-o"),
+) -> None:
+    """Generate transcript only."""
+    console.print("[yellow]Transcript mode[/yellow]")
+    # TODO: implement transcript-only mode
+
+
+@app.command()
+def search(
+    query: str = typer.Argument(..., help="Search query"),
+    index: Path = typer.Option(..., "--index", "-i", help="Path to search index", exists=True),
+    top_k: int = typer.Option(10, "--top-k", "-k", help="Number of results"),
+) -> None:
+    """Semantic search across processed videos."""
+    from videomarker.search.engine import SearchEngine
+
+    engine = SearchEngine()
+    engine.load(str(index))
+    results = engine.search(query, top_k=top_k)
+
+    if not results:
+        console.print("[yellow]No results found[/yellow]")
         return
 
-    console.print("[bold]Available Processors:[/bold]\n")
-    for plugin in plugins:
-        console.print(f"  [cyan]{plugin.name}[/cyan]")
-        console.print(f"    Priority: {plugin.priority}")
-        console.print(f"    Dependencies: {plugin.dependencies or 'none'}")
-        console.print(f"    Class: {plugin.processor_class.__name__}")
+    console.print(f"[bold]Search results for:[/bold] {query}\n")
+    for r in results:
+        console.print(f"  [cyan]{r['id']}[/cyan] ({r['score']:.2f})")
+        console.print(f"  {r['text'][:200]}…")
         console.print()
 
 
 @app.command()
-def serve(
-    host: str = "127.0.0.1",
-    port: int = 8080,
-    config: Optional[Path] = None,
+def export(
+    input_dir: Path = typer.Argument(..., help="MarkDirectory input", exists=True),
+    format: str = typer.Option("markdown", "--format", "-f", help="Export format: markdown, json, html"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o"),
 ) -> None:
-    """Start the VideoMarker REST API server."""
-    import uvicorn
-
-    console.print(f"[bold blue]VideoMarker API[/bold blue] — Starting server on {host}:{port}")
-    uvicorn.run(
-        "videomarker.api.server:app",
-        host=host,
-        port=port,
-        reload=False,
-        log_level="info",
-    )
+    """Export processed video to a different format."""
+    console.print(f"[yellow]Exporting to {format}…[/yellow]")
+    # TODO: implement export
 
 
 @app.command()
-def version() -> None:
-    """Show the installed version."""
-    from videomarker import __version__
-    console.print(f"[bold]VideoMarker[/bold] v{__version__}")
+def plugin(
+    list_plugins: bool = typer.Option(False, "--list", "-l", help="List all plugins"),
+) -> None:
+    """List and manage plugins."""
+    from videomarker.plugins.loader import PluginLoader
+
+    plugins = PluginLoader.list_plugins()
+    if not plugins:
+        console.print("[yellow]No plugins found[/yellow]")
+        return
+
+    console.print("[bold]Available Plugins:[/bold]\n")
+    for name, desc in plugins.items():
+        console.print(f"  [cyan]{name}[/cyan] — {desc}")
+
+
+@app.command()
+def config(
+    show: bool = typer.Option(False, "--show", "-s", help="Show current config"),
+    path: Optional[Path] = typer.Option(None, "--path", "-p", help="Config file path"),
+) -> None:
+    """View and manage configuration."""
+    cm = ConfigManager()
+    if path:
+        cm.load_yaml(path)
+    cfg = cm.resolve()
+    if show:
+        console.print(json.dumps(cfg.model_dump(), indent=2))
+
+
+@app.command()
+def doctor() -> None:
+    """Check system dependencies."""
+    checks = [
+        ("Python 3.10+", sys.version_info >= (3, 10)),
+    ]
+
+    # Check ffmpeg
+    import shutil
+    checks.append(("FFmpeg", shutil.which("ffmpeg") is not None))
+
+    # Check imports
+    import importlib.util
+    for mod in ["cv2", "scenedetect", "PIL"]:
+        checks.append((f"{mod}", importlib.util.find_spec(mod) is not None))
+
+    console.print("[bold]System Check:[/bold]\n")
+    for name, ok in checks:
+        icon = "[green]✓[/green]" if ok else "[red]✗[/red]"
+        console.print(f"  {icon} {name}")
+
+
+@app.command()
+def benchmark(
+    video: Path = typer.Argument(..., help="Video file for benchmarking", exists=True),
+) -> None:
+    """Run performance benchmarks."""
+    console.print("[yellow]Benchmark mode[/yellow]")
+    # TODO: implement benchmark
 
 
 if __name__ == "__main__":

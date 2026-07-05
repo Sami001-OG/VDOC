@@ -3,9 +3,9 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "videomarker"
+name = "vdoc"
 version = "0.1.0"
-description = "Convert videos into structured MarkDirectory — the Marker equivalent for video"
+description = "Video → Document. Structured. Searchable. Semantic."
 readme = "README.md"
 authors = [
     { name = "VideoMarker Contributors" },
@@ -84,7 +84,7 @@ dev = [
 ]
 
 [project.scripts]
-videomarker = "videomarker.cli.main:app"
+vdoc = "videomarker.cli.main:app"
 
 [tool.setuptools.packages.find]
 where = ["."]

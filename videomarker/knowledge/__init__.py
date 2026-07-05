@@ -1,3 +1,5 @@
-from videomarker.knowledge.graph import KnowledgeGraphBuilder
+"""Knowledge graph — entity extraction and relationship mapping."""
 
-__all__ = ["KnowledgeGraphBuilder"]
+from videomarker.knowledge.graph import KnowledgeGraph
+
+__all__ = ["KnowledgeGraph"]

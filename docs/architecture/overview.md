@@ -2,88 +2,83 @@
 
 ## Design Philosophy
 
-VideoMarker follows Marker's architectural philosophy:
+VDOC follows a layered architecture:
 
-**Provider → Builder → Processors → Renderer**
+**Provider → Pipeline Stage → Document Model → Renderer**
 
-But instead of pages, the primary unit is a **time segment** (scene/shot).
+All external services go through `ProviderRegistry` (dependency injection). The `VideoDocument` is the single source of truth. Renderers consume it to produce output.
 
 ## Core Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      Video File                          │
-└──────────────────────┬──────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                    Video File                        │
+└──────────────────────┬──────────────────────────────┘
                        │
-┌──────────────────────▼──────────────────────────────────┐
-│                   VideoProvider                          │
-│              (FFmpeg / FFprobe)                          │
-│         Extracts metadata, codec, duration, FPS          │
-└──────────────────────┬──────────────────────────────────┘
+┌──────────────────────▼──────────────────────────────┐
+│                    Providers                         │
+│  ┌────────┐  ┌──────┐  ┌───────┐  ┌────────────┐  │
+│  │  Video  │  │Speech│  │Vision│  │   OCR      │  │
+│  │(FFmpeg) │  │Whisper│  │ VLMs │  │  Paddle    │  │
+│  └────────┘  └──────┘  └───────┘  └────────────┘  │
+│              ┌──────────┐ ┌──────────┐            │
+│              │   LLM    │ │Embedding │            │
+│              │(OpenAI.) │ │(Sentence)│            │
+│              └──────────┘ └──────────┘            │
+│         (All accessed via ProviderRegistry)        │
+└──────────────────────┬──────────────────────────────┘
                        │
-┌──────────────────────▼──────────────────────────────────┐
-│                  FrameExtractor                          │
-│                 (OpenCV / FFmpeg)                        │
-│            Extracts frames at configurable FPS           │
-└──────────────────────┬──────────────────────────────────┘
+┌──────────────────────▼──────────────────────────────┐
+│                 Pipeline Stages                      │
+│                                                      │
+│  Video → SceneDetection → Speech → OCR →            │
+│  Vision → LLM → Render                              │
+│                                                      │
+│  (Checkpoint/resume via JSON.                       │
+│   PipelineContext is the shared data bus.)           │
+└──────────────────────┬──────────────────────────────┘
                        │
-┌──────────────────────▼──────────────────────────────────┐
-│                  AudioExtractor                          │
-│                    (FFmpeg)                              │
-│              Extracts audio as 16kHz WAV                 │
-└──────────────────────┬──────────────────────────────────┘
+┌──────────────────────▼──────────────────────────────┐
+│               VideoDocument (Model)                  │
+│                                                      │
+│  Scenes, Transcript, OCR, Captions, Concepts,        │
+│  Entities, Embeddings, Knowledge Graph               │
+│                                                      │
+│  (Single source of truth. Typed dataclasses.)        │
+└──────────────────────┬──────────────────────────────┘
                        │
-┌──────────────────────▼──────────────────────────────────┐
-│                  SceneDetector                           │
-│               (PySceneDetect)                            │
-│         Detects cuts, transitions, slide changes         │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────┐
-│                 TimelineBuilder                          │
-│           Groups scenes into chapters, builds timeline   │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────┐
-│                    Processors                            │
-│  ┌──────────┐  ┌──────┐  ┌──────┐  ┌──────────┐       │
-│  │Transcript│  │ OCR  │  │Vision│  │ Semantic │  ...   │
-│  └──────────┘  └──────┘  └──────┘  └──────────┘       │
-│         (Auto-discovered via PluginRegistry)            │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────┐
-│                    Renderer                              │
-│              (MarkDirectory Renderer)                    │
-│     Produces structured Markdown, JSON, images, etc.     │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────┐
-│                   MarkDirectory                          │
-│         A structured directory with full output          │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────▼──────────────────────────────┐
+│                    Renderers                         │
+│                                                      │
+│  MarkDirectory  │  Markdown  │  JSON  │  HTML       │
+│                                                      │
+│  (Each consumes VideoDocument, produces output.)     │
+└─────────────────────────────────────────────────────┘
 ```
 
 ## Plugin System
 
-Processors are discovered via `PluginRegistry`:
+Plugins are auto-discovered from:
+1. `plugins/` directory in the project root
+2. `plugins/community/` directory
+3. `plugins/local/` directory
+4. Installed Python packages with entry points
 
-1. Scan `videomarker.processors` package
-2. Scan user-specified plugin directories
-3. Scan entry points
-4. Register all `Processor` subclasses with `@processor()` decorator
+Each plugin is loaded via `PluginLoader` and can provide custom processors, providers, or renderers.
 
 ## Data Flow
 
-PipelineContext is the shared data bus:
-- All stages read from and write to `context.data`
-- No stage is coupled to any other stage's implementation
-- The Renderer reads the final state and produces output
+1. `ConfigManager` resolves config (CLI > YAML > .env > defaults)
+2. `ProviderRegistry` registers and initializes providers lazily
+3. `PipelineOrchestrator` runs stages sequentially with checkpoint/resume
+4. Each stage reads/writes `PipelineContext`
+5. `RenderStage` converts `PipelineContext` → `VideoDocument`
+6. Renderers consume `VideoDocument` to produce output
 
 ## Design Patterns
 
-- **Strategy Pattern**: Each processor implements a common interface
-- **Factory Pattern**: PluginRegistry creates processor instances
-- **Dependency Injection**: Settings injected into processors
-- **Repository Pattern**: Data models are Pydantic-based
-- **Pipeline Pattern**: Sequential processing with context passing
+- **Dependency Injection**: All external services go through `ProviderRegistry`
+- **Strategy Pattern**: Each provider implements a common `BaseProvider` interface
+- **Pipeline Pattern**: Sequential stages with shared context
+- **Checkpoint Pattern**: JSON checkpoint files for resume
+- **Singleton Pattern**: `VideoDocument` is the single source of truth

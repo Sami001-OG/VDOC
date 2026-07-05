@@ -1,3 +1,5 @@
-from videomarker.providers.ffmpeg import FFmpegVideoProvider
+"""Provider system — abstract interfaces for external services."""
 
-__all__ = ["FFmpegVideoProvider"]
+from videomarker.providers.registry import ProviderRegistry
+
+__all__ = ["ProviderRegistry"]

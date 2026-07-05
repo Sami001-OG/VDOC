@@ -1,3 +1,5 @@
-from videomarker.search.embeddings import EmbeddingGenerator, SearchEngine
+"""Semantic search across all video content."""
 
-__all__ = ["EmbeddingGenerator", "SearchEngine"]
+from videomarker.search.engine import SearchEngine
+
+__all__ = ["SearchEngine"]

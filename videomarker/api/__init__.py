@@ -1,6 +1,5 @@
-"""VideoMarker REST API — FastAPI-based server for video processing."""
+"""REST API for VDOC."""
 
-from videomarker.api.server import create_app, app
+from videomarker.api.server import app, create_app
 
-__all__ = ["create_app", "app", "get_settings"]
-
+__all__ = ["app", "create_app"]

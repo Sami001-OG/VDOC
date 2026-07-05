@@ -2,106 +2,149 @@
 
 ## Overview
 
-VideoMarker uses a plugin architecture for all content processors. The system automatically discovers processors via the `PluginRegistry` and executes them in dependency order.
+VDOC uses a plugin architecture for extending functionality. The `PluginLoader` auto-discovers plugins from several directories. Plugins can provide custom processors, providers, or renderers.
 
-## Creating a Processor
+## Directory Structure
 
-### 1. Create a new module
+```
+project/
+├── plugins/
+│   ├── my_plugin/
+│   │   ├── __init__.py
+│   │   └── processor.py
+├── plugins/community/
+│   └── ...
+└── plugins/local/
+    └── ...
+```
 
-Place your processor in `videomarker/plugins/` or any directory added to the plugin search path.
+## Creating a Processor Plugin
 
-### 2. Define your processor class
+### 1. Create the plugin structure
+
+```
+plugins/my_sentiment_plugin/
+├── __init__.py
+└── processor.py
+```
+
+### 2. Define the processor function
 
 ```python
-"""my_custom_processor.py"""
+"""plugins/my_sentiment_plugin/processor.py"""
 
-from videomarker.core.processor import Processor
-from videomarker.core.plugin import processor
+from videomarker.plugins import processor
 
 
 @processor(
-    "my_analyzer",              # Unique processor name
-    dependencies=["transcript"],  # Processors that must run first
-    priority=60,                 # Execution order (lower = earlier)
+    name="sentiment_analyzer",
+    description="Analyze transcript sentiment per scene",
+    dependencies=["transcript"],
 )
-class MyAnalyzer(Processor):
-    """Custom processor that analyzes transcript sentiment."""
+def analyze_sentiment(context):
+    """Analyze sentiment for each transcribed scene."""
+    transcript = context.get("transcript", {})
+    segments = transcript.get("segments", [])
 
-    def process(self, context):
-        """Execute this processor.
+    results = []
+    for seg in segments:
+        text = seg.get("text", "")
+        # Custom sentiment logic
+        score = 0.5  # placeholder
+        results.append({
+            "start": seg.get("start", 0),
+            "end": seg.get("end", 0),
+            "sentiment": "positive" if score > 0.5 else "negative",
+            "score": score,
+        })
 
-        Args:
-            context: PipelineContext with all pipeline data.
-                     Access data via context.data dict.
-        """
-        transcript = context.data.get("transcript")
-        if not transcript:
-            return
-
-        # Your custom analysis logic
-        result = self.analyze(transcript)
-
-        # Store result for other processors and renderers
-        context.data["my_analysis"] = result
-
-    def analyze(self, transcript):
-        # Implement your analysis here
-        return {"sentiment": "positive", "score": 0.85}
+    context["sentiment"] = results
+    return results
 ```
 
-### 3. Register the plugin search path
+## Creating a Provider Plugin
+
+Providers wrap external services. Implement `BaseProvider` and register via `ProviderRegistry`:
 
 ```python
+"""plugins/my_tts_provider/provider.py"""
+
+from videomarker.providers.base import BaseProvider, ProviderConfig
+
+
+class MyTTSProvider(BaseProvider):
+    """Custom text-to-speech provider."""
+
+    async def initialize(self) -> None:
+        # Set up connections
+        pass
+
+    async def process(self, data: dict) -> dict:
+        text = data.get("text", "")
+        voice = data.get("voice", "default")
+        # Generate speech...
+        return {"audio_path": "/path/to/output.wav"}
+
+    async def close(self) -> None:
+        # Clean up
+        pass
+```
+
+Register it:
+
+```python
+from videomarker.providers.registry import ProviderRegistry
+from my_tts_provider.provider import MyTTSProvider
+
+ProviderRegistry.register("tts", MyTTSProvider)
+```
+
+## Creating a Renderer Plugin
+
+Implement `BaseRenderer`:
+
+```python
+"""plugins/my_renderer/renderer.py"""
+
 from pathlib import Path
-from videomarker.core.plugin import PluginRegistry
+from videomarker.renderers.base import BaseRenderer
+from videomarker.models.document import VideoDocument
 
-PluginRegistry.add_search_path(Path("/path/to/your/plugins"))
+
+class MyCustomRenderer(BaseRenderer):
+    """Custom renderer that produces a CSV report."""
+
+    format_name = "csv"
+
+    def render(self, doc: VideoDocument, output_dir: Path) -> Path:
+        path = output_dir / "report.csv"
+        with open(path, "w") as f:
+            f.write("scene,start,end,transcript\n")
+            for scene in doc.timeline.scenes:
+                text = scene.transcript.text if scene.transcript else ""
+                f.write(f"{scene.number},{scene.start_time},{scene.end_time},\"{text}\"\n")
+        return path
 ```
 
-Or place the module in `videomarker/plugins/` for automatic discovery.
+## Plugin Lifecycle
 
-## Processor API
+1. **Discovery**: `PluginLoader` scans plugin directories on startup
+2. **Registration**: Processors are registered with their dependencies
+3. **Execution**: The pipeline runs processors in dependency order
+4. **Cleanup**: Each processor's cleanup is called after execution
 
-### Required Methods
-
-- `process(self, context) -> None`: Main processing logic
-
-### Optional Attributes
-
-- `__processor_name__`: Set via `@processor("name")` decorator
-- `__processor_dependencies__`: List of processor names this depends on
-- `__processor_priority__`: Integer priority (lower = earlier execution)
-
-### Context Data
-
-Common context.data keys:
-
-| Key | Type | Description |
-|-----|------|-------------|
-| `video_path` | Path | Input video path |
-| `video_info` | VideoInfo | Video metadata |
-| `frames_dir` | Path | Extracted frames directory |
-| `audio_path` | Path | Extracted audio file |
-| `scenes` | List[Scene] | Detected scenes |
-| `timeline` | Timeline | Structured timeline |
-| `transcript` | Transcript | Speech transcription |
-| `ocr_results` | Dict[str, OCRResult] | OCR per scene |
-| `vision_results` | Dict[str, VisionUnderstanding] | Vision per scene |
-| `semantic` | SemanticUnderstanding | Semantic analysis |
-| `keywords` | List[str] | Extracted keywords |
-| `knowledge_graph` | KnowledgeGraph | Entity graph |
-
-## Testing Processors
+## Testing Plugins
 
 ```python
-from unittest.mock import Mock
-
-def test_my_processor():
-    context = Mock()
-    context.data = {"transcript": Mock(full_text="Hello world")}
-
-    processor = MyAnalyzer()
-    processor.process(context)
-
-    assert "my_analysis" in context.data
+def test_sentiment_analyzer():
+    context = {
+        "transcript": {
+            "segments": [
+                {"start": 0.0, "end": 5.0, "text": "This is great!"},
+            ]
+        }
+    }
+    result = analyze_sentiment(context)
+    assert "sentiment" in context
+    assert len(context["sentiment"]) == 1
 ```

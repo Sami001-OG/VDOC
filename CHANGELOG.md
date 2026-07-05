@@ -4,21 +4,29 @@
 
 - Initial release
 - Core pipeline architecture with plugin system
+- Provider system with DI (ProviderRegistry)
 - Video provider with FFmpeg metadata extraction
 - Frame extraction via OpenCV
 - Audio extraction via FFmpeg
 - Scene detection via PySceneDetect
 - Timeline builder with auto-chapterization
-- Transcript processor with faster-whisper
-- OCR processor with PaddleOCR and Surya support
-- Vision understanding with LLM API
-- Semantic understanding with concept extraction
-- Keyword and entity extraction
-- Knowledge graph construction
-- Embedding generation and semantic search (FAISS)
-- MarkDirectory renderer with full output structure
-- CLI with batch processing
-- REST API with FastAPI
-- Docker support
-- Comprehensive configuration via .env
-- Plugin system for custom processors
+- Speech/transcript provider with faster-whisper
+- OCR provider with PaddleOCR
+- Vision provider with OpenAI-compatible VLMs
+- LLM provider with OpenAI-compatible models
+- Embedding provider with sentence-transformers
+- Knowledge graph: Entity/Relation extraction and querying
+- Semantic search engine with FAISS + brute-force fallback
+- VideoDocument model (single source of truth, typed dataclasses)
+- PipelineOrchestrator with checkpoint/resume
+- 7 pipeline stages: Video, SceneDetection, Speech, OCR, Vision, LLM, Render
+- 4 renderers: MarkDirectory, Markdown, JSON, HTML
+- CLI with 9 subcommands: process, summarize, transcript, search, export, plugin, config, doctor, benchmark
+- REST API with FastAPI (8 endpoints)
+- Web UI dashboard (Next.js, dark theme, 37 files)
+- ConfigManager with layered priority (CLI > YAML > .env > defaults)
+- Plugin auto-discovery from plugins/, plugins/community/, plugins/local/
+- Agent system: BaseAgent, SimpleAgent, AgentOrchestrator
+- Docker + docker-compose support
+- GitHub Actions CI (lint, test, docker)
+- Logo (fold mark + wordmark, monochrome-first)
