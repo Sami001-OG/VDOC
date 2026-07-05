@@ -18,15 +18,7 @@ Converts `mp4`, `mkv`, `mov`, `avi`, `webm`, `flv`, `m4v` into a structured **Ma
 
 </div>
 
----
 
-## Logo
-
-<div align="center">
-<img src="assets/logo-icon.svg" width="64" height="64" alt="VDOC icon">
-</div>
-
-The VDOC mark is a geometric monogram where a **V** (video) folds into a **document page**, with the negative space forming a play triangle. Clean, minimal, monochrome-first.
 
 ---
 
