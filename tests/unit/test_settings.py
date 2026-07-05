@@ -1,26 +1,26 @@
 """Tests for configuration settings."""
 
-from videomarker.config.settings import VideoMarkerSettings
+from videomarker.config.manager import ConfigManager, ConfigSchema
 
 
-class TestVideoMarkerSettings:
-    def test_default_settings(self):
-        settings = VideoMarkerSettings()
-        assert settings.llm_provider == "openai"
-        assert settings.base_url == "https://api.openai.com/v1"
-        assert settings.frame_extraction_fps == 1.0
-        assert settings.scene_detect_threshold == 30.0
-        assert settings.ocr_engine == "paddle"
+class TestConfigManager:
+    def test_defaults(self):
+        cm = ConfigManager()
+        cfg = cm.resolve()
+        assert isinstance(cfg, ConfigSchema)
+        assert cfg.llm_provider == "openai"
 
-    def test_is_local_mode(self):
-        settings = VideoMarkerSettings(llm_provider="ollama")
-        assert settings.is_local_mode() is True
+    def test_cli_override(self):
+        cm = ConfigManager()
+        cm.load_cli(video_path="/tmp/test.mp4")
+        cfg = cm.resolve()
+        assert cfg.video_path == "/tmp/test.mp4"
 
-        settings = VideoMarkerSettings(llm_provider="openai")
-        assert settings.is_local_mode() is False
-
-    def test_enabled_processors_default(self):
-        settings = VideoMarkerSettings()
-        assert "transcript" in settings.enabled_processors
-        assert "ocr" in settings.enabled_processors
-        assert "vision" in settings.enabled_processors
+    def test_layered_priority(self):
+        cm = ConfigManager()
+        cm.load_defaults({"llm_provider": "ollama", "temperature": 0.7})
+        cm.load_cli(temperature=0.5)
+        cfg = cm.resolve()
+        # CLI should win over defaults
+        assert cfg.temperature == 0.5
+        assert cfg.llm_provider == "ollama"

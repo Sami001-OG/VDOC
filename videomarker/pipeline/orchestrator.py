@@ -99,7 +99,8 @@ class PipelineOrchestrator:
 
             try:
                 ctx = await stage.execute(ctx)
-                ctx.completed_stages.append(stage_name)
+                if stage_name not in ctx.completed_stages:
+                    ctx.completed_stages.append(stage_name)
                 self._notify_progress(stage_name, 1.0)
                 self._save_checkpoint(ctx)
             except Exception as e:

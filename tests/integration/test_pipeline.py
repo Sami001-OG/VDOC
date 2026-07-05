@@ -5,75 +5,77 @@ from pathlib import Path
 
 import pytest
 
-from videomarker.config.settings import VideoMarkerSettings
-from videomarker.core.pipeline import Pipeline
-from videomarker.models.segment import Scene, SegmentType
-from videomarker.models.video import VideoInfo, VideoMetadata
+from videomarker.config.manager import ConfigManager
+from videomarker.models.document import Scene, Timeline
+from videomarker.pipeline.base import PipelineContext, PipelineStage
 
 
-class MockProvider:
-    """Simple mock video provider for testing."""
+class MockStage(PipelineStage):
+    """Simple mock stage for testing."""
 
-    def load(self, path):
-        meta = VideoMetadata(
-            file_path=str(path),
-            file_size=1000,
-            duration=60.0,
-            fps=30.0,
-            width=1920,
-            height=1080,
-            codec="h264",
-            format_name="mp4",
-        )
-        return VideoInfo(
-            id="test_001",
-            metadata=meta,
-            total_frames=1800,
-            output_dir=path.parent / "test.markdir",
-        )
+    def __init__(self, name: str, ok: bool = True) -> None:
+        super().__init__()
+        self.stage_name = name
+        self._ok = ok
+
+    async def execute(self, ctx: PipelineContext) -> PipelineContext:
+        return ctx
+
+    async def validate(self, ctx: PipelineContext) -> bool:
+        return self._ok
 
 
 class TestPipelineIntegration:
-    def test_pipeline_creation(self):
-        settings = VideoMarkerSettings()
-        pipeline = Pipeline(settings=settings)
-        assert pipeline is not None
-        assert pipeline.context is not None
+    @pytest.mark.asyncio
+    async def test_pipeline_creation(self):
+        from videomarker.pipeline.orchestrator import PipelineOrchestrator
 
-    def test_pipeline_skip_audio_when_missing(self):
-        """Test pipeline handles missing components gracefully."""
-        settings = VideoMarkerSettings()
-        pipeline = Pipeline(settings=settings)
+        pipeline = PipelineOrchestrator()
+        pipeline.register_stage(MockStage("video"))
+        pipeline.register_stage(MockStage("render"))
 
-        # Override steps to avoid real deps
-        def mock_step():
-            pass
+        ctx = PipelineContext(video_path="/tmp/test.mp4", output_dir="/tmp/out")
+        result = await pipeline.run(ctx)
+        assert result.completed_stages == ["video", "render"]
 
-        pipeline.register_step("provider", mock_step)
-        pipeline.register_step("frame_extract", mock_step)
-        pipeline.register_step("audio_extract", mock_step)
-        pipeline.register_step("scene_detect", mock_step)
-        pipeline.register_step("timeline_build", mock_step)
-        pipeline.register_step("processors", mock_step)
-        pipeline.register_step("render", mock_step)
+    @pytest.mark.asyncio
+    async def test_pipeline_skip_invalid_stage(self):
+        from videomarker.pipeline.orchestrator import PipelineOrchestrator
 
-        with tempfile.NamedTemporaryFile(suffix=".mp4") as f:
-            result = pipeline.run(Path(f.name))
-            assert result is not None
+        pipeline = PipelineOrchestrator()
+        pipeline.register_stage(MockStage("video", ok=True))
+        pipeline.register_stage(MockStage("render", ok=False))
 
-    def test_pipeline_with_scenes(self):
-        """Test pipeline processes scene data correctly."""
-        from videomarker.core.builder import TimelineBuilder
+        ctx = PipelineContext(video_path="/tmp/test.mp4", output_dir="/tmp/out")
+        result = await pipeline.run(ctx)
+        assert "video" in result.completed_stages
+        assert "render" in result.completed_stages  # skipped but still recorded
 
+    @pytest.mark.asyncio
+    async def test_pipeline_resume(self):
+        from videomarker.pipeline.orchestrator import PipelineOrchestrator
+
+        with tempfile.TemporaryDirectory() as tmp:
+            pipeline = PipelineOrchestrator()
+            pipeline.register_stage(MockStage("stage_a"))
+            pipeline.register_stage(MockStage("stage_b"))
+            pipeline.set_checkpoint_dir(Path(tmp))
+
+            ctx = PipelineContext(video_path="/tmp/test.mp4", output_dir="/tmp/out")
+            # Simulate first execution that saved checkpoint
+            ctx.completed_stages = ["stage_a"]
+            pipeline._save_checkpoint(ctx)
+
+            # Resume execution
+            old_len = len(ctx.completed_stages)
+            result = await pipeline.run(ctx)
+            assert len(result.completed_stages) > old_len
+
+    def test_timeline_scenes(self):
         scenes = [
-            Scene(
-                id=f"scene_{i:03d}",
-                segment_type=SegmentType.SCENE,
-                scene_number=i + 1,
-                start_time=i * 10.0,
-                end_time=(i + 1) * 10.0,
-            )
+            Scene(id=f"s{i}", number=i + 1, start_time=i * 10.0, end_time=(i + 1) * 10.0)
             for i in range(3)
         ]
-        timeline = TimelineBuilder().build(scenes)
-        assert len(timeline.scenes) == 3
+        tl = Timeline(scenes=scenes)
+        assert len(tl.scenes) == 3
+        assert tl.scenes[0].duration == 10.0

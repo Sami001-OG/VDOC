@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel, Field
 
 
-class ConfigSchema(BaseSettings):
+class ConfigSchema(BaseModel):
     """Unified configuration schema.
 
     Priority (highest to lowest):
@@ -19,12 +18,6 @@ class ConfigSchema(BaseSettings):
         .env
         defaults
     """
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
 
     # Provider
     llm_provider: str = "openai"
@@ -48,6 +41,7 @@ class ConfigSchema(BaseSettings):
     video_provider: str = "ffmpeg"
 
     # Pipeline
+    video_path: str = ""
     frame_fps: float = 1.0
     scene_threshold: float = 30.0
     max_frames: int = 5000
@@ -70,6 +64,8 @@ class ConfigSchema(BaseSettings):
     temperature: float = 0.1
     max_tokens: int = 4096
     resume: bool = False
+
+    model_config = {"extra": "ignore"}
 
 
 class ConfigManager:
@@ -97,9 +93,13 @@ class ConfigManager:
         return self
 
     def load_env(self, path: Optional[Path] = None) -> ConfigManager:
-        """Load configuration from .env file."""
-        if path:
-            os.environ["VIDEOMARKER_CONFIG"] = str(path)
+        """Load configuration from .env file (optional, uses python-dotenv)."""
+        if path and path.exists():
+            try:
+                from dotenv import load_dotenv
+                load_dotenv(path)
+            except ImportError:
+                pass
         return self
 
     def load_cli(self, **kwargs: Any) -> ConfigManager:
@@ -107,13 +107,22 @@ class ConfigManager:
         self._cli_config = {k: v for k, v in kwargs.items() if v is not None}
         return self
 
+    def load_defaults(self, defaults: Dict[str, Any]) -> ConfigManager:
+        """Load default configuration values."""
+        self._overrides.update(defaults)
+        return self
+
     def resolve(self) -> ConfigSchema:
         """Resolve configuration with proper priority.
 
         Priority: CLI > YAML > .env > defaults
         """
-        # Start with defaults by constructing from env
         config = ConfigSchema()
+
+        # Apply manual overrides
+        for key, value in self._overrides.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
 
         # Apply YAML overrides
         for key, value in self._yaml_config.items():

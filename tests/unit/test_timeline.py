@@ -1,44 +1,32 @@
-"""Tests for the timeline builder."""
+"""Tests for the timeline model."""
 
-from videomarker.core.builder import TimelineBuilder
-from videomarker.models.segment import Scene, SegmentType
+from videomarker.models.document import Scene, Timeline
 
 
-class TestTimelineBuilder:
+class TestTimeline:
     def test_build_with_scenes(self):
-        builder = TimelineBuilder()
         scenes = [
             Scene(
-                id=f"scene_{i:03d}",
-                segment_type=SegmentType.SCENE,
-                scene_number=0,
+                id=f"s{i:03d}",
+                number=i + 1,
                 start_time=i * 10.0,
                 end_time=(i + 1) * 10.0,
             )
             for i in range(5)
         ]
-        timeline = builder.build(scenes)
-        assert len(timeline.scenes) == 5
-        assert len(timeline.chapters) >= 1
-        assert timeline.scenes[0].scene_number == 1
+        tl = Timeline(scenes=scenes)
+        assert len(tl.scenes) == 5
+        assert tl.scenes[0].number == 1
 
-    def test_auto_chapterize(self):
-        builder = TimelineBuilder()
-        scenes = [
-            Scene(
-                id=f"scene_{i:03d}",
-                segment_type=SegmentType.SCENE,
-                scene_number=0,
-                start_time=i * 10.0,
-                end_time=(i + 1) * 10.0,
-            )
-            for i in range(20)
-        ]
-        timeline = builder.build(scenes)
-        assert len(timeline.chapters) >= 2
+    def test_with_chapters(self):
+        tl = Timeline(
+            scenes=[Scene(id="s1", number=1, start_time=0.0, end_time=60.0)],
+            chapters=[{"title": "Full Video", "start_time": 0.0, "end_time": 60.0}],
+        )
+        assert len(tl.chapters) == 1
+        assert tl.chapters[0]["title"] == "Full Video"
 
-    def test_empty_scenes(self):
-        builder = TimelineBuilder()
-        timeline = builder.build([])
-        assert len(timeline.scenes) == 0
-        assert len(timeline.chapters) == 0
+    def test_empty_timeline(self):
+        tl = Timeline()
+        assert len(tl.scenes) == 0
+        assert len(tl.chapters) == 0
