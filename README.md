@@ -9,7 +9,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-8b5cf6?style=flat-square&labelColor=1a1b22)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-22d3ee?style=flat-square&labelColor=1a1b22&logo=python&logoColor=22d3ee)](https://www.python.org)
-[![CI](https://img.shields.io/badge/CI-passing-22c55e?style=flat-square&labelColor=1a1b22)](.github/workflows/ci.yml)
+[![CI](https://github.com/Sami001-OG/VDOC/actions/workflows/ci.yml/badge.svg)](https://github.com/Sami001-OG/VDOC/actions/workflows/ci.yml)
 [![Docker](https://img.shields.io/badge/Docker-ready-3b82f6?style=flat-square&labelColor=1a1b22&logo=docker&logoColor=3b82f6)](docker/Dockerfile)
 [![Code style](https://img.shields.io/badge/code%20style-ruff-22d3ee?style=flat-square&labelColor=1a1b22)](https://github.com/astral-sh/ruff)
 [![GitHub stars](https://img.shields.io/github/stars/Sami001-OG/VDOC?style=flat-square&labelColor=1a1b22&color=f59e0b)](https://github.com/Sami001-OG/VDOC)
