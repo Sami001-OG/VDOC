@@ -1,28 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <defs>
-    <linearGradient id="a" x1="0" y1="0" x2="512" y2="512">
-      <stop offset="0%" stop-color="#22d3ee"/>
-      <stop offset="100%" stop-color="#8b5cf6"/>
-    </linearGradient>
-    <linearGradient id="b" x1="256" y1="48" x2="360" y2="152">
-      <stop offset="0%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#6d28d9"/>
-    </linearGradient>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" fill="none">
+  <!-- App icon / favicon version of the VDOC mark.
+       A single continuous ribbon folding into a V —
+       play button + document corner in one gesture. -->
 
-  <!-- Surface -->
-  <rect x="48" y="48" width="416" height="416" rx="80" fill="#121318"/>
+  <!-- Background plate -->
+  <rect x="8" y="8" width="144" height="144" rx="24" fill="#121318" stroke="#1e1f27" stroke-width="2"/>
 
-  <!-- Outer document frame -->
-  <rect x="88" y="72" width="336" height="368" rx="36" stroke="url(#a)" stroke-width="12"/>
-
-  <!-- Fold corner -->
-  <line x1="368" y1="72" x2="368" y2="176" stroke="url(#b)" stroke-width="12" stroke-linecap="round"/>
-  <line x1="368" y1="176" x2="264" y2="176" stroke="url(#b)" stroke-width="12" stroke-linecap="round"/>
-
-  <!-- Left V stroke -->
-  <line x1="152" y1="400" x2="256" y2="256" stroke="url(#a)" stroke-width="20" stroke-linecap="round"/>
-
-  <!-- Right V stroke -->
-  <line x1="360" y1="400" x2="256" y2="256" stroke="url(#a)" stroke-width="20" stroke-linecap="round"/>
+  <!-- Fold mark -->
+  <path d="M48 44 L80 116 L112 44" stroke="#22d3ee" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M112 44 L112 60" stroke="#22d3ee" stroke-width="8" stroke-linecap="round" fill="none"/>
 </svg>

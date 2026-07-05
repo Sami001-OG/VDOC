@@ -14,7 +14,6 @@
 [![Code style](https://img.shields.io/badge/code%20style-ruff-22d3ee?style=flat-square&labelColor=1a1b22)](https://github.com/astral-sh/ruff)
 [![GitHub stars](https://img.shields.io/github/stars/Sami001-OG/VDOC?style=flat-square&labelColor=1a1b22&color=f59e0b)](https://github.com/Sami001-OG/VDOC)
 
-**The open-source equivalent of [Marker](https://github.com/VikParuchuri/marker) (PDF→Markdown), but for video.**  
 Converts `mp4`, `mkv`, `mov`, `avi`, `webm`, `flv`, `m4v` into a structured **MarkDirectory** — not a flat transcript dump.
 
 </div>
