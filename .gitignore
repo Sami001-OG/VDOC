@@ -38,3 +38,8 @@ htmlcov/
 
 # Docker
 .docker/
+
+# WebUI
+webui/node_modules/
+webui/.next/
+webui/out/

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" fill="none">
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="600" y2="420">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Document body — rounded rectangle -->
+  <rect x="100" y="40" width="400" height="280" rx="32" stroke="url(#accent)" stroke-width="12"/>
+
+  <!-- Folded corner flap — diagonal fold creating the V -->
+  <path d="M450 40 L450 150 L340 150" stroke="#6d28d9" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- V shape: left stroke — bottom-left to center apex -->
+  <path d="M160 285 L300 120" stroke="url(#accent)" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- V shape: right stroke — center apex to intersection with fold -->
+  <path d="M300 120 L440 285" stroke="url(#accent)" stroke-width="18" stroke-linecap="round"/>
+
+  <!-- Wordmark -->
+  <text x="300" y="385" text-anchor="middle" font-family="'Inter','SF Pro Display',-apple-system,sans-serif" font-size="56" font-weight="700" letter-spacing="14" fill="#e8e9ed">VDOC</text>
+</svg>
