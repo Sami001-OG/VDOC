@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- VDOC Logo — clean geometric monogram: V formed by document fold with embedded play triangle -->
-<img src="assets/logo.svg" width="160" height="auto" alt="VDOC">
+<img src="assets/logo-icon.svg" width="160" height="auto" alt="VDOC">
 
 # VDOC
 
