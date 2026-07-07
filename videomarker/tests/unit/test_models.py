@@ -2,8 +2,9 @@
 
 from pathlib import Path
 
-from videomarker.models.document import (
-    Asset, Caption, Concept, Embedding, Entity, OCR, Scene, Timeline, Transcript, VideoDocument,
+from vdoc.models.document import (
+    Asset, Caption, Chapter, Concept, Embedding, Entity, Frame, OCR, OCRBlock,
+    Relationship, Scene, Timeline, Transcript, TranscriptSegment, VideoDocument, Word,
 )
 
 
@@ -54,11 +55,49 @@ class TestTranscriptModel:
         assert t.text == "Hello world"
         assert t.word_count == 2
 
-    def test_timestamps(self):
+    def test_segments_typed(self):
         t = Transcript(text="Hello world", segments=[
-            {"start": 0.0, "end": 1.5, "text": "Hello world"},
+            TranscriptSegment(start=0.0, end=1.5, text="Hello world"),
         ])
         assert len(t.segments) == 1
+        assert t.segments[0].start == 0.0
+        assert t.segments[0].end == 1.5
+
+
+class TestTranscriptSegmentModel:
+    def test_segment_creation(self):
+        seg = TranscriptSegment(
+            start=0.0,
+            end=5.5,
+            text="Welcome to the lecture",
+            confidence=0.95,
+            words=[
+                Word(word="Welcome", start=0.0, end=0.8, probability=0.99),
+                Word(word="to", start=0.8, end=1.0, probability=0.98),
+            ],
+        )
+        assert seg.start == 0.0
+        assert seg.end == 5.5
+        assert len(seg.words) == 2
+        assert seg.words[0].word == "Welcome"
+
+
+class TestOCRModel:
+    def test_ocr_creation(self):
+        ocr = OCR(text="Hello World", language="en", blocks=[
+            OCRBlock(text="Hello", confidence=0.95, bbox=[0, 0, 100, 0, 100, 50, 0, 50]),
+            OCRBlock(text="World", confidence=0.90),
+        ])
+        assert ocr.text == "Hello World"
+        assert len(ocr.blocks) == 2
+        assert ocr.blocks[0].confidence == 0.95
+
+
+class TestChapterModel:
+    def test_chapter_creation(self):
+        ch = Chapter(title="Intro", start_time=0.0, end_time=120.0, scene_ids=["s1", "s2"])
+        assert ch.title == "Intro"
+        assert len(ch.scene_ids) == 2
 
 
 class TestEntityModel:
@@ -85,13 +124,28 @@ class TestTimelineModel:
     def test_timeline_with_chapters(self):
         tl = Timeline(
             scenes=[Scene(id="s1", number=1, start_time=0.0, end_time=10.0)],
-            chapters=[{"title": "Intro", "start_time": 0.0, "end_time": 10.0}],
+            chapters=[Chapter(title="Intro", start_time=0.0, end_time=10.0)],
         )
         assert len(tl.scenes) == 1
         assert len(tl.chapters) == 1
+
+
+class TestFrameModel:
+    def test_frame_creation(self):
+        f = Frame(id="f1", number=1, timestamp=5.0)
+        assert f.id == "f1"
+        assert f.number == 1
+
+
+class TestRelationshipModel:
+    def test_relationship_creation(self):
+        r = Relationship(subject="Python", predicate="is_a", obj="Language")
+        assert r.subject == "Python"
+        assert r.obj == "Language"
 
 
 class TestAssetModel:
     def test_asset_creation(self):
         a = Asset(path=Path("/tmp/keyframe.jpg"), type="image")
         assert a.type == "image"
+

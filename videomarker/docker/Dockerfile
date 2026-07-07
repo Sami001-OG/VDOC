@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-LABEL org.opencontainers.image.title="VideoMarker"
+LABEL org.opencontainers.image.title="VDOC"
 LABEL org.opencontainers.image.description="Convert videos to structured MarkDirectory"
 LABEL org.opencontainers.image.license="Apache-2.0"
 
@@ -19,7 +19,7 @@ WORKDIR /app
 
 # Copy project files
 COPY pyproject.toml README.md ./
-COPY videomarker/ ./videomarker/
+COPY vdoc/ ./vdoc/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -e ".[all]"
@@ -31,4 +31,4 @@ VOLUME ["/data"]
 EXPOSE 8080
 
 # Default command
-CMD ["videomarker", "--help"]
+CMD ["vdoc", "--help"]

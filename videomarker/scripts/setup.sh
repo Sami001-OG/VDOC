@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=== VideoMarker Setup ==="
+echo "=== VDOC Setup ==="
 
 # Check Python version
 python_version=$(python3 --version 2>&1 | awk '{print $2}')
@@ -16,7 +16,7 @@ fi
 source .venv/bin/activate
 
 # Install with dev dependencies
-echo "Installing VideoMarker..."
+echo "Installing VDOC..."
 pip install -e ".[dev,all]"
 
 # Setup pre-commit hooks
@@ -34,4 +34,4 @@ fi
 echo ""
 echo "=== Setup Complete ==="
 echo "Run 'source .venv/bin/activate' to activate"
-echo "Run 'videomarker --help' to get started"
+echo "Run 'vdoc --help' to get started"

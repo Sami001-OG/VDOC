@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'VideoMarker Studio',
+  title: 'VDOC Studio',
   description: 'Convert videos to structured MarkDirectory',
 };
 

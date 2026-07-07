@@ -3,7 +3,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from videomarker.plugins.loader import PluginLoader
+from vdoc.plugins.loader import PluginLoader
 
 
 class TestPluginLoader:
@@ -32,3 +32,4 @@ class TestPluginLoader:
             found2 = loader.discover(Path(tmp2))
             assert len(found) >= 0
             assert len(found2) >= 0
+

@@ -1,6 +1,6 @@
 """Tests for the timeline model."""
 
-from videomarker.models.document import Scene, Timeline
+from vdoc.models.document import Chapter, Scene, Timeline
 
 
 class TestTimeline:
@@ -21,12 +21,13 @@ class TestTimeline:
     def test_with_chapters(self):
         tl = Timeline(
             scenes=[Scene(id="s1", number=1, start_time=0.0, end_time=60.0)],
-            chapters=[{"title": "Full Video", "start_time": 0.0, "end_time": 60.0}],
+            chapters=[Chapter(title="Full Video", start_time=0.0, end_time=60.0)],
         )
         assert len(tl.chapters) == 1
-        assert tl.chapters[0]["title"] == "Full Video"
+        assert tl.chapters[0].title == "Full Video"
 
     def test_empty_timeline(self):
         tl = Timeline()
         assert len(tl.scenes) == 0
         assert len(tl.chapters) == 0
+

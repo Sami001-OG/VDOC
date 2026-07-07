@@ -1,6 +1,6 @@
 """Tests for configuration settings."""
 
-from videomarker.config.manager import ConfigManager, ConfigSchema
+from vdoc.config.manager import ConfigManager, ConfigSchema
 
 
 class TestConfigManager:
@@ -24,3 +24,4 @@ class TestConfigManager:
         # CLI should win over defaults
         assert cfg.temperature == 0.5
         assert cfg.llm_provider == "ollama"
+

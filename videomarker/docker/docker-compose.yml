@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  videomarker:
+  vdoc:
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -12,7 +12,7 @@ services:
       - ./videos:/videos:ro
     env_file:
       - ../.env
-    command: ["videomarker", "serve", "--host", "0.0.0.0", "--port", "8080"]
+    command: ["vdoc", "serve", "--host", "0.0.0.0", "--port", "8080"]
     deploy:
       resources:
         reservations:
@@ -21,7 +21,7 @@ services:
               count: all
               capabilities: [gpu]
 
-  videomarker-cli:
+  vdoc-cli:
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -30,6 +30,6 @@ services:
       - ./videos:/videos:ro
     env_file:
       - ../.env
-    entrypoint: ["videomarker"]
+    entrypoint: ["vdoc"]
     profiles:
       - cli

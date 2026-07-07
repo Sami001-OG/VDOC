@@ -36,7 +36,7 @@ export function Sidebar() {
           <Film className="w-4 h-4 text-accent-cyan" />
         </div>
         <div>
-          <span className="text-sm font-semibold text-text-primary">VideoMarker</span>
+          <span className="text-sm font-semibold text-text-primary">VDOC</span>
           <span className="block text-[10px] text-text-muted font-medium tracking-wider uppercase">
             Studio
           </span>

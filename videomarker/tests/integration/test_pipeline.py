@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from videomarker.config.manager import ConfigManager
-from videomarker.models.document import Scene, Timeline
-from videomarker.pipeline.base import PipelineContext, PipelineStage
+from vdoc.config.manager import ConfigManager
+from vdoc.models.document import Scene, Timeline
+from vdoc.pipeline.base import PipelineContext, PipelineStage
 
 
 class MockStage(PipelineStage):
@@ -28,7 +28,7 @@ class MockStage(PipelineStage):
 class TestPipelineIntegration:
     @pytest.mark.asyncio
     async def test_pipeline_creation(self):
-        from videomarker.pipeline.orchestrator import PipelineOrchestrator
+        from vdoc.pipeline.orchestrator import PipelineOrchestrator
 
         pipeline = PipelineOrchestrator()
         pipeline.register_stage(MockStage("video"))
@@ -40,7 +40,7 @@ class TestPipelineIntegration:
 
     @pytest.mark.asyncio
     async def test_pipeline_skip_invalid_stage(self):
-        from videomarker.pipeline.orchestrator import PipelineOrchestrator
+        from vdoc.pipeline.orchestrator import PipelineOrchestrator
 
         pipeline = PipelineOrchestrator()
         pipeline.register_stage(MockStage("video", ok=True))
@@ -53,7 +53,7 @@ class TestPipelineIntegration:
 
     @pytest.mark.asyncio
     async def test_pipeline_resume(self):
-        from videomarker.pipeline.orchestrator import PipelineOrchestrator
+        from vdoc.pipeline.orchestrator import PipelineOrchestrator
 
         with tempfile.TemporaryDirectory() as tmp:
             pipeline = PipelineOrchestrator()
@@ -79,3 +79,4 @@ class TestPipelineIntegration:
         tl = Timeline(scenes=scenes)
         assert len(tl.scenes) == 3
         assert tl.scenes[0].duration == 10.0
+

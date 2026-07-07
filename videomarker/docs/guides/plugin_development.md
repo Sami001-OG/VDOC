@@ -33,7 +33,7 @@ plugins/my_sentiment_plugin/
 ```python
 """plugins/my_sentiment_plugin/processor.py"""
 
-from videomarker.plugins import processor
+from vdoc.plugins import processor
 
 
 @processor(
@@ -69,7 +69,7 @@ Providers wrap external services. Implement `BaseProvider` and register via `Pro
 ```python
 """plugins/my_tts_provider/provider.py"""
 
-from videomarker.providers.base import BaseProvider, ProviderConfig
+from vdoc.providers.base import BaseProvider, ProviderConfig
 
 
 class MyTTSProvider(BaseProvider):
@@ -93,7 +93,7 @@ class MyTTSProvider(BaseProvider):
 Register it:
 
 ```python
-from videomarker.providers.registry import ProviderRegistry
+from vdoc.providers.registry import ProviderRegistry
 from my_tts_provider.provider import MyTTSProvider
 
 ProviderRegistry.register("tts", MyTTSProvider)
@@ -107,8 +107,8 @@ Implement `BaseRenderer`:
 """plugins/my_renderer/renderer.py"""
 
 from pathlib import Path
-from videomarker.renderers.base import BaseRenderer
-from videomarker.models.document import VideoDocument
+from vdoc.renderers.base import BaseRenderer
+from vdoc.models.document import VideoDocument
 
 
 class MyCustomRenderer(BaseRenderer):

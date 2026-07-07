@@ -1,11 +1,11 @@
 """Example custom processor plugin.
 
-Place this file in videomarker/plugins/ or register the path:
+Place this file in vdoc/plugins/ or register the path:
     PluginRegistry.add_search_path(Path("/path/to/plugins"))
 """
 
-from videomarker.core.processor import Processor
-from videomarker.core.plugin import processor
+from vdoc.core.processor import Processor
+from vdoc.core.plugin import processor
 
 
 @processor("code_detector", dependencies=["vision"], priority=55)
@@ -43,3 +43,4 @@ class CodeDetector(Processor):
             if any(p in desc_lower for p in patterns):
                 return lang
         return "unknown"
+

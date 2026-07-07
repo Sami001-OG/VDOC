@@ -1,12 +1,12 @@
-# Contributing to VideoMarker
+# Contributing to VDOC
 
 We welcome contributions of all kinds!
 
 ## Development Setup
 
 ```bash
-git clone https://github.com/yourusername/videomarker
-cd videomarker
+git clone https://github.com/yourusername/vdoc
+cd vdoc
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install -e ".[dev,all]"
@@ -19,7 +19,7 @@ pip install -e ".[dev,all]"
 ruff check .
 
 # Type check
-mypy videomarker
+mypy vdoc
 
 # Test
 pytest

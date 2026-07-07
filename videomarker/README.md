@@ -36,7 +36,7 @@ Converts `mp4`, `mkv`, `mov`, `avi`, `webm`, `flv`, `m4v` into a structured **Ma
 | **Plugin System** | `@processor` decorator — add custom processors without modifying core code |
 | **Provider-Agnostic** | Switch between OpenAI, OpenRouter, Groq, Ollama, LM Studio, vLLM — change `.env` only |
 | **Local Mode** | Fully offline inference with Ollama + local Whisper |
-| **Batch Processing** | Process entire directories with `videomarker ./videos/` |
+| **Batch Processing** | Process entire directories with `vdoc ./videos/` |
 | **REST API** | FastAPI server with auto-generated OpenAPI docs at `/docs` |
 | **Web Dashboard** | Next.js dark-theme UI — drag-drop upload, pipeline viz, live logs, scene preview, semantic search |
 
@@ -139,19 +139,19 @@ cp .env.example .env
 # Edit .env with your API keys
 
 # Process a single video
-videomarker lecture.mp4
+vdoc lecture.mp4
 
 # Batch process all videos in a directory
-videomarker ./videos/
+vdoc ./videos/
 
 # Process specific components
-videomarker lecture.mp4 --transcript
-videomarker lecture.mp4 --ocr
-videomarker lecture.mp4 --summary
-videomarker lecture.mp4 --chapters
+vdoc lecture.mp4 --transcript
+vdoc lecture.mp4 --ocr
+vdoc lecture.mp4 --summary
+vdoc lecture.mp4 --chapters
 
 # Start the web dashboard
-videomarker serve
+vdoc serve
 # Open http://localhost:8080
 ```
 
@@ -242,9 +242,9 @@ WHISPER_DEVICE=cpu
 Add custom processors without modifying existing code:
 
 ```python
-# my_plugin.py — place in videomarker/plugins/ or any registered path
-from videomarker.core.processor import Processor
-from videomarker.core.plugin import processor
+# my_plugin.py — place in vdoc/plugins/ or any registered path
+from vdoc.core.processor import Processor
+from vdoc.core.plugin import processor
 
 @processor("code_detector", dependencies=["vision"], priority=55)
 class CodeDetector(Processor):
@@ -278,7 +278,7 @@ Processors are auto-discovered. See [Plugin Development Guide](docs/guides/plugi
 
 ```bash
 # Start the API server
-videomarker serve
+vdoc serve
 # OpenAPI docs at http://localhost:8080/docs
 
 # Process a video
@@ -334,7 +334,7 @@ Features:
 docker compose up
 
 # Run CLI
-docker compose run --rm videomarker-cli lecture.mp4
+docker compose run --rm vdoc-cli lecture.mp4
 
 # With GPU support
 docker compose up --profile gpu
@@ -374,13 +374,13 @@ source .venv/bin/activate   # or .venv\Scripts\activate on Windows
 pip install -e ".[dev,all]"
 
 # Run tests
-pytest tests/ -v --cov=videomarker
+pytest tests/ -v --cov=vdoc
 
 # Lint
-ruff check videomarker/
+ruff check vdoc/
 
 # Type check
-mypy videomarker/ --ignore-missing-imports
+mypy vdoc/ --ignore-missing-imports
 ```
 
 ---
@@ -389,7 +389,7 @@ mypy videomarker/ --ignore-missing-imports
 
 ```
 VDOC/
-├── videomarker/              # Core Python package
+├── vdoc/                     # Core Python package
 │   ├── core/                 # Pipeline, plugin system, base classes
 │   ├── models/               # Pydantic data models
 │   ├── providers/            # FFmpeg video loading
@@ -432,7 +432,7 @@ VDOC/
 
 ## License
 
-[Apache 2.0](LICENSE) © VideoMarker Contributors
+[Apache 2.0](LICENSE) © VDOC Contributors
 
 ---
 

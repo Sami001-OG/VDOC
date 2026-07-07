@@ -15,8 +15,8 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install ruff mypy
-      - run: ruff check videomarker/
-      - run: mypy videomarker/ --ignore-missing-imports
+      - run: ruff check vdoc/
+      - run: mypy vdoc/ --ignore-missing-imports
 
   test:
     runs-on: ubuntu-latest
@@ -29,7 +29,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
-      - run: pytest tests/ -v --cov=videomarker
+      - run: pytest tests/ -v --cov=vdoc
 
   docker:
     runs-on: ubuntu-latest
