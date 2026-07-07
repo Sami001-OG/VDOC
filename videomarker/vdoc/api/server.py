@@ -2,18 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import shutil
 import tempfile
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
+from vdoc.events import PipelineEvent
+from vdoc.events.bus import get_bus
 from vdoc.services import PipelineService, ProviderService
 from vdoc.services.export_service import ExportService
 
@@ -35,7 +39,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── In-memory state ──────────────────────────────────────────────
 _jobs: Dict[str, Dict[str, Any]] = {}
+_background_tasks: Dict[str, asyncio.Task] = {}
+_ws_connections: Dict[str, List[WebSocket]] = {}
+_event_bus = get_bus()
 
 
 def create_app() -> FastAPI:
@@ -48,7 +56,80 @@ async def startup() -> None:
     logger.info("VDOC API v1 started")
 
 
-# --- Health (#80) ---
+# ── WebSocket progress ───────────────────────────────────────────
+
+@app.websocket("/v1/ws/{job_id}")
+async def ws_progress(websocket: WebSocket, job_id: str) -> None:
+    await websocket.accept()
+    _ws_connections.setdefault(job_id, []).append(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        _ws_connections[job_id] = [ws for ws in _ws_connections.get(job_id, []) if ws != websocket]
+
+
+async def _broadcast(job_id: str, msg: Dict[str, Any]) -> None:
+    for ws in _ws_connections.get(job_id, []):
+
+        async def send(ws: WebSocket, m: str) -> None:
+            try:
+                await ws.send_text(m)
+            except Exception:
+                pass
+
+        asyncio.create_task(send(ws, json.dumps(msg)))
+
+
+# ── Background job runner ────────────────────────────────────────
+
+async def _run_job(job_id: str, video_path: Path, cfg: Dict[str, Any], file_name: str) -> None:
+    _jobs[job_id].update({"status": "processing", "started_at": datetime.utcnow().isoformat()})
+    await _broadcast(job_id, {"event": "job_started", "job_id": job_id})
+
+    progress_handler = _progress_handler(job_id, _broadcast)
+    _event_bus.subscribe("stage.started", progress_handler)
+    _event_bus.subscribe("stage.completed", progress_handler)
+    _event_bus.subscribe("stage.failed", progress_handler)
+
+    try:
+        pipeline = PipelineService.build_pipeline(cfg)
+        ctx = PipelineService.create_context(str(video_path), cfg["output_dir"], cfg)
+        result = await PipelineService.run_pipeline(pipeline, ctx)
+        _jobs[job_id].update({
+            "status": "completed",
+            "completed_at": datetime.utcnow().isoformat(),
+            "errors": ctx.errors,
+            "output_dir": result.output_dir,
+        })
+        await _broadcast(job_id, {"event": "job_completed", "job_id": job_id, "output_dir": result.output_dir})
+    except Exception as e:
+        _jobs[job_id]["status"] = "failed"
+        _jobs[job_id]["error"] = str(e)
+        _jobs[job_id].setdefault("errors", []).append(str(e))
+        logger.exception("Job %s failed", job_id)
+        await _broadcast(job_id, {"event": "job_failed", "job_id": job_id, "error": str(e)})
+    finally:
+        _event_bus.unsubscribe("stage.started", progress_handler)
+        _event_bus.unsubscribe("stage.completed", progress_handler)
+        _event_bus.unsubscribe("stage.failed", progress_handler)
+        _background_tasks.pop(job_id, None)
+
+
+def _progress_handler(job_id: str, broadcast):
+    def handler(event: PipelineEvent) -> None:
+        data = event.data or {}
+        asyncio.create_task(broadcast(job_id, {
+            "event": event.name,
+            "job_id": job_id,
+            "stage": event.stage or data.get("stage", ""),
+            "timestamp": datetime.utcnow().isoformat(),
+            **data,
+        }))
+    return handler
+
+
+# ── Health (#80) ─────────────────────────────────────────────────
 
 @app.get("/v1/health")
 async def health_check() -> Dict[str, Any]:
@@ -56,10 +137,11 @@ async def health_check() -> Dict[str, Any]:
         "status": "healthy",
         "version": "1.0.0",
         "providers": ProviderService.list_available(),
+        "active_jobs": len(_background_tasks),
     }
 
 
-# --- Process (#71) ---
+# ── Process (#71) ────────────────────────────────────────────────
 
 @app.post("/v1/process")
 async def process_video(
@@ -82,25 +164,19 @@ async def process_video(
 
     _jobs[job_id] = {
         "id": job_id,
-        "status": "processing",
+        "status": "queued",
         "video": file.filename,
         "video_path": str(video_path),
+        "created_at": datetime.utcnow().isoformat(),
     }
 
-    try:
-        pipeline = PipelineService.build_pipeline(cfg)
-        ctx = PipelineService.create_context(str(video_path), cfg["output_dir"], cfg)
-        result = await PipelineService.run_pipeline(pipeline, ctx)
-        _jobs[job_id].update({"status": "completed", "errors": ctx.errors, "output_dir": result.output_dir})
-    except Exception as e:
-        _jobs[job_id]["status"] = "failed"
-        _jobs[job_id]["error"] = str(e)
-        logger.exception("Job %s failed", job_id)
+    task = asyncio.create_task(_run_job(job_id, video_path, cfg, file.filename or "video.mp4"))
+    _background_tasks[job_id] = task
 
-    return _jobs[job_id]
+    return {"id": job_id, "status": "queued"}
 
 
-# --- Status ---
+# ── Status ───────────────────────────────────────────────────────
 
 @app.get("/v1/status/{job_id}")
 async def get_status(job_id: str) -> Dict[str, Any]:
@@ -110,7 +186,28 @@ async def get_status(job_id: str) -> Dict[str, Any]:
     return job
 
 
-# --- Search ---
+@app.get("/v1/jobs")
+async def list_jobs() -> List[Dict[str, Any]]:
+    return [
+        {"id": jid, "status": j.get("status"), "video": j.get("video"), "created_at": j.get("created_at")}
+        for jid, j in _jobs.items()
+    ]
+
+
+# ── Cancel ───────────────────────────────────────────────────────
+
+@app.post("/v1/cancel/{job_id}")
+async def cancel_job(job_id: str) -> Dict[str, str]:
+    task = _background_tasks.get(job_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="No running job found")
+    task.cancel()
+    _jobs[job_id]["status"] = "cancelled"
+    await _broadcast(job_id, {"event": "job_cancelled", "job_id": job_id})
+    return {"id": job_id, "status": "cancelled"}
+
+
+# ── Search ───────────────────────────────────────────────────────
 
 @app.post("/v1/search")
 async def search_video(
@@ -134,7 +231,7 @@ async def search_video(
     return engine.search(query, top_k=top_k)
 
 
-# --- Scene ---
+# ── Scene ────────────────────────────────────────────────────────
 
 @app.get("/v1/scene/{job_id}/{scene_number}")
 async def get_scene(job_id: str, scene_number: int) -> Dict[str, Any]:
@@ -156,7 +253,7 @@ async def get_scene(job_id: str, scene_number: int) -> Dict[str, Any]:
     return result
 
 
-# --- Summary ---
+# ── Summary ──────────────────────────────────────────────────────
 
 @app.get("/v1/summary/{job_id}")
 async def get_summary(job_id: str) -> str:
@@ -169,7 +266,7 @@ async def get_summary(job_id: str) -> str:
     return summary_path.read_text(encoding="utf-8")
 
 
-# --- Timeline ---
+# ── Timeline ─────────────────────────────────────────────────────
 
 @app.get("/v1/timeline/{job_id}")
 async def get_timeline(job_id: str) -> Dict[str, Any]:
@@ -182,7 +279,7 @@ async def get_timeline(job_id: str) -> Dict[str, Any]:
     return json.loads(timeline_path.read_text(encoding="utf-8"))
 
 
-# --- Download ---
+# ── Download ─────────────────────────────────────────────────────
 
 @app.get("/v1/download/{job_id}")
 async def download(job_id: str) -> FileResponse:
@@ -197,7 +294,7 @@ async def download(job_id: str) -> FileResponse:
     return FileResponse(zip_path, media_type="application/zip", filename=f"{output_dir.name}.zip")
 
 
-# --- Processors ---
+# ── Processors ───────────────────────────────────────────────────
 
 @app.get("/v1/processors")
 async def list_processors() -> List[Dict[str, Any]]:

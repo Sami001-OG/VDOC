@@ -1,0 +1,13 @@
+{
+    "plugin_name": "my_vdoc_plugin",
+    "display_name": "My VDOC Plugin",
+    "description": "A VDOC plugin that does something useful",
+    "version": "0.1.0",
+    "author": "Your Name",
+    "email": "you@example.com",
+    "python_package": "{{ cookiecutter.plugin_name | replace('-', '_') | lower }}",
+    "plugin_class": "MyPlugin",
+    "plugin_type": ["processor", "provider", "renderer"],
+    "openai_compatible": false,
+    "_copy_without_render": ["tests"]
+}

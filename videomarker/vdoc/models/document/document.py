@@ -6,10 +6,15 @@ Renderers convert these objects into Markdown, JSON, HTML, etc.
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+
+def _uuid() -> str:
+    return str(uuid.uuid4())
 
 
 DOCUMENT_MODEL_VERSION = "1.0.0"
@@ -17,7 +22,8 @@ DOCUMENT_MODEL_VERSION = "1.0.0"
 
 @dataclass
 class Provenance:
-    """Tracks which processor/generated a piece of data (#45)."""
+    """Tracks which processor/generated a piece of data."""
+    uuid: str = field(default_factory=_uuid)
     processor: str = ""
     model: str = ""
     timestamp: datetime = field(default_factory=datetime.utcnow)
@@ -32,6 +38,7 @@ class Word:
     start: float = 0.0
     end: float = 0.0
     probability: float = 0.0
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -45,6 +52,7 @@ class TranscriptSegment:
     words: List[Word] = field(default_factory=list)
     speaker: Optional[str] = None
     provenance: Optional[Provenance] = None
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -55,6 +63,7 @@ class Transcript:
     text: str = ""
     language: Optional[str] = None
     provenance: Optional[Provenance] = None
+    uuid: str = field(default_factory=_uuid)
 
     @property
     def word_count(self) -> int:
@@ -68,6 +77,7 @@ class OCRBlock:
     text: str = ""
     confidence: float = 0.0
     bbox: List[float] = field(default_factory=list)
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -77,6 +87,7 @@ class OCR:
     blocks: List[OCRBlock] = field(default_factory=list)
     text: str = ""
     language: str = "en"
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -87,6 +98,7 @@ class Caption:
     detailed: str = ""
     tags: List[str] = field(default_factory=list)
     provenance: Optional[Provenance] = None
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -98,6 +110,7 @@ class Frame:
     timestamp: float = 0.0
     path: Optional[Path] = None
     provenance: Optional[Provenance] = None
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -109,6 +122,7 @@ class Scene:
     start_time: float
     end_time: float
     confidence: float = 1.0
+    uuid: str = field(default_factory=_uuid)
 
     # Per-scene analysis results
     transcript: Optional[Transcript] = None
@@ -138,6 +152,7 @@ class Chapter:
     start_time: float = 0.0
     end_time: float = 0.0
     scene_ids: List[str] = field(default_factory=list)
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -148,6 +163,7 @@ class Concept:
     description: str = ""
     importance: float = 0.5
     related_concepts: List[str] = field(default_factory=list)
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -158,6 +174,7 @@ class Entity:
     type: str = "concept"
     description: Optional[str] = None
     confidence: float = 0.5
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -168,6 +185,7 @@ class Relationship:
     predicate: str = ""
     obj: str = ""
     confidence: float = 1.0
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -180,6 +198,7 @@ class Embedding:
     source_type: str = ""
     timestamp: float = 0.0
     model: str = ""
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -189,6 +208,7 @@ class Timeline:
     scenes: List[Scene] = field(default_factory=list)
     chapters: List[Chapter] = field(default_factory=list)
     duration: float = 0.0
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -198,6 +218,7 @@ class Asset:
     path: Path
     type: str = "image"
     description: str = ""
+    uuid: str = field(default_factory=_uuid)
 
 
 @dataclass
@@ -208,6 +229,7 @@ class VideoDocument:
     """
 
     # Identity
+    uuid: str = field(default_factory=_uuid)
     title: str = ""
     source_path: Path = Path("")
     created_at: datetime = field(default_factory=datetime.utcnow)
