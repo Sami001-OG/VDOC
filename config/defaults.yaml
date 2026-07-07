@@ -1,0 +1,39 @@
+# VideoMarker default configuration
+# Override with .env or CLI flags
+
+llm_provider: openai
+llm_base_url: https://api.openai.com/v1
+llm_model: gpt-4o
+
+vision_provider: openai
+vision_model: gpt-4o
+
+speech_provider: whisper
+speech_model: base
+
+ocr_provider: paddle
+
+embedding_provider: sentence-transformers
+embedding_model: BAAI/bge-large-en-v1.5
+
+video_provider: ffmpeg
+
+frame_fps: 1.0
+scene_threshold: 30.0
+max_frames: 5000
+device: cpu
+gpu_enabled: false
+
+output_format: markdirectory
+export_formats:
+  - markdown
+  - json
+overwrite: false
+
+build_search_index: true
+search_top_k: 10
+
+log_level: INFO
+temperature: 0.1
+max_tokens: 4096
+resume: false
