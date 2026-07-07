@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 140" fill="none">
+  <!-- Two-part logo: clean geometric "fold" mark + bold wordmark.
+       The mark is a single continuous ribbon that folds into a V —
+       suggesting both a play button (video) and a folded page (document).
+       Monochrome-first; cyan reserved for the mark. -->
+
+  <!-- Fold mark: continuous ribbon, two segments.
+       Left segment angles down; right segment folds back up,
+       creating a V that reads as both play and document corner. -->
+  <path d="M24 36 L56 104 L88 36" stroke="#22d3ee" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M88 36 L88 50" stroke="#22d3ee" stroke-width="6" stroke-linecap="round" fill="none"/>
+
+  <!-- Wordmark -->
+  <text x="112" y="84" font-family="'Inter','SF Pro Display',-apple-system,BlinkMacSystemFont,sans-serif" font-size="64" font-weight="700" letter-spacing="10" fill="#e8e9ed">VDOC</text>
+</svg>
