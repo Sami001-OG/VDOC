@@ -1,32 +1,5 @@
-"""FileService — file system operations."""
+"""File system operations — re-exported from utils for backward compatibility."""
 
-from __future__ import annotations
+from vdoc.utils.files import ensure_dir, get_directory_size, iter_video_files, safe_filename
 
-import re
-from pathlib import Path
-from typing import Generator
-
-
-def ensure_dir(path: Path) -> Path:
-    path = Path(path)
-    path.mkdir(parents=True, exist_ok=True)
-    return path
-
-
-def safe_filename(name: str) -> str:
-    name = re.sub(r'[<>:"/\\|?*]', "_", name)
-    name = re.sub(r'\s+', "_", name)
-    name = name.strip("._")
-    return name
-
-
-def iter_video_files(directory: Path, recursive: bool = True) -> Generator[Path, None, None]:
-    extensions = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".flv", ".m4v", ".mpeg", ".ogv"}
-    pattern = "**/*" if recursive else "*"
-    for f in Path(directory).glob(pattern):
-        if f.is_file() and f.suffix.lower() in extensions:
-            yield f
-
-
-def get_directory_size(path: Path) -> int:
-    return sum(f.stat().st_size for f in Path(path).rglob("*") if f.is_file())
+__all__ = ["ensure_dir", "get_directory_size", "iter_video_files", "safe_filename"]

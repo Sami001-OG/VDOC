@@ -22,7 +22,15 @@ class SearchIndexStage(PipelineStage):
             return ctx
 
         engine = SearchEngine()
-        engine.build_index(ctx.embeddings)
+        if ctx.embeddings and hasattr(ctx.embeddings[0], "__dataclass_fields__"):
+            index_data = [
+                {"id": e.id, "vector": e.vector, "text": e.text,
+                 "source_type": e.source_type, "timestamp": e.timestamp}
+                for e in ctx.embeddings
+            ]
+        else:
+            index_data = ctx.embeddings  # type: ignore
+        engine.build_index(index_data)
 
         index_path = Path(ctx.output_dir) / "search.index"
         engine.save(str(index_path))

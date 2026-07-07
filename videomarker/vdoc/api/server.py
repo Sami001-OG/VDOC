@@ -18,7 +18,8 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from vdoc.events import PipelineEvent
 from vdoc.events.bus import get_bus
-from vdoc.services import PipelineService, ProviderService
+from vdoc.providers.registry import ProviderRegistry
+from vdoc.services import PipelineService
 from vdoc.services.export_service import ExportService
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ def create_app() -> FastAPI:
 
 @app.on_event("startup")
 async def startup() -> None:
-    ProviderService.register_defaults()
+    ProviderRegistry.register_defaults()
     logger.info("VDOC API v1 started")
 
 
@@ -136,7 +137,7 @@ async def health_check() -> Dict[str, Any]:
     return {
         "status": "healthy",
         "version": "1.0.0",
-        "providers": ProviderService.list_available(),
+        "providers": ProviderRegistry.list_available(),
         "active_jobs": len(_background_tasks),
     }
 

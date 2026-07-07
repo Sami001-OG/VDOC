@@ -21,7 +21,7 @@ class LLMStage(PipelineStage):
 
     async def execute(self, ctx: PipelineContext) -> PipelineContext:
         provider = await ProviderRegistry.get("llm")
-        transcript_text = ctx.transcript.get("text", "")
+        transcript_text = ctx.transcript.text if ctx.transcript else ""
 
         if not transcript_text:
             logger.warning("No transcript text for LLM analysis")
@@ -36,7 +36,7 @@ class LLMStage(PipelineStage):
             ctx.llm_output = parsed
             # Derive chapters from scenes + LLM
             if parsed.get("chapters") and ctx.scenes:
-                chapters = [Chapter(**ch) for ch in parsed["chapters"]]
+                chapters = [Chapter(**ch) if isinstance(ch, dict) else ch for ch in parsed["chapters"]]
                 await self._assign_scenes_to_chapters(ctx, chapters)
                 ctx.llm_output["chapters"] = [
                     {"title": ch.title, "start_time": ch.start_time, "end_time": ch.end_time, "scene_ids": ch.scene_ids}
@@ -52,8 +52,8 @@ class LLMStage(PipelineStage):
         """Assign scene IDs to chapters based on timestamps."""
         for ch in chapters:
             for scene in ctx.scenes:
-                if scene["start_time"] >= ch.start_time and scene["end_time"] <= ch.end_time:
-                    ch.scene_ids.append(scene["id"])
+                if scene.start_time >= ch.start_time and scene.end_time <= ch.end_time:
+                    ch.scene_ids.append(scene.id)
 
     async def validate(self, ctx: PipelineContext) -> bool:
         return ctx.config.get("llm_provider", "openai") != "none"

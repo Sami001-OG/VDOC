@@ -1,8 +1,8 @@
-"""Utility functions — re-exported from services for backward compatibility."""
+"""Utility functions — file, media, and timing helpers."""
 
-from vdoc.services.file_service import ensure_dir, get_directory_size, iter_video_files, safe_filename
-from vdoc.services.media_service import get_aspect_ratio, get_video_dimensions, is_video_file
-from vdoc.services.timing_service import Timer, format_timestamp, parse_timestamp
+from vdoc.utils.files import ensure_dir, get_directory_size, iter_video_files, safe_filename
+from vdoc.utils.media import get_aspect_ratio, get_video_dimensions, is_video_file
+from vdoc.utils.timing import Timer, format_timestamp, parse_timestamp
 
 __all__ = [
     "ensure_dir", "get_directory_size", "iter_video_files", "safe_filename",

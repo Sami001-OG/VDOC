@@ -11,6 +11,17 @@ Usage:
 """
 
 from vdoc.events.bus import EventBus, PipelineEvent
+from vdoc.sdk.exceptions import (
+    CacheError,
+    ConfigError,
+    PipelineError,
+    PluginError,
+    ProviderError,
+    RendererError,
+    StageError,
+    ValidationError,
+    VdocError,
+)
 from vdoc.models.document.document import (
     Asset,
     Caption,
@@ -31,7 +42,7 @@ from vdoc.models.document.document import (
     Word,
 )
 from vdoc.pipeline.base import PipelineContext, PipelineStage
-from vdoc.plugins.base import PluginInterface
+from vdoc.plugins.loader import PluginInterface
 from vdoc.providers.base.provider import BaseProvider, ProviderCapability, ProviderConfig
 from vdoc.providers.registry import get_provider, register_provider
 from vdoc.renderers.base import BaseRenderer
@@ -46,10 +57,12 @@ __all__ = [
     "AssetManager",
     "BaseProvider",
     "BaseRenderer",
+    "CacheError",
     "CacheManager",
     "Caption",
     "Chapter",
     "Concept",
+    "ConfigError",
     "DOCUMENT_MODEL_VERSION",
     "Embedding",
     "Entity",
@@ -59,17 +72,24 @@ __all__ = [
     "OCR",
     "OCRBlock",
     "PipelineContext",
+    "PipelineError",
     "PipelineEvent",
     "PipelineStage",
+    "PluginError",
     "PluginInterface",
     "Provenance",
     "ProviderCapability",
     "ProviderConfig",
+    "ProviderError",
     "Relationship",
+    "RendererError",
     "Scene",
+    "StageError",
     "Timeline",
     "Transcript",
     "TranscriptSegment",
+    "ValidationError",
+    "VdocError",
     "VideoDocument",
     "Word",
     "get_provider",

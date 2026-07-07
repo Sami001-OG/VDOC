@@ -19,7 +19,7 @@ from vdoc.pipeline.stages import (
     RenderStage,
 )
 from vdoc.services.pipeline_service import PipelineService
-from vdoc.services.provider_service import ProviderService
+from vdoc.providers.registry import ProviderRegistry
 
 
 class BenchmarkService:
@@ -44,7 +44,7 @@ class BenchmarkService:
         video = Path(video_path)
         output_dir = str(video.parent / f"{video.stem}_benchmark")
 
-        ProviderService.register_defaults()
+        ProviderRegistry.register_defaults()
 
         for name, stage_cls in BenchmarkService.STAGES.items():
             pipeline = PipelineOrchestrator()

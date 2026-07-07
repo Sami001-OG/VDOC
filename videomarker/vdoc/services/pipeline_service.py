@@ -9,51 +9,25 @@ from typing import Any, Dict, List, Optional
 from vdoc.config.manager import ConfigManager
 from vdoc.pipeline.base import PipelineContext
 from vdoc.pipeline.orchestrator import PipelineOrchestrator
-from vdoc.pipeline.stages import (
-    EmbeddingStage,
-    LLMStage,
-    OCRStage,
-    RenderStage,
-    SceneDetectionStage,
-    SearchIndexStage,
-    SpeechStage,
-    VideoStage,
-    VisionStage,
-)
-from vdoc.services.provider_service import ProviderService
+from vdoc.pipeline.registry import StageRegistry
 
 
 class PipelineService:
     """Service for building and running video processing pipelines."""
 
-    STAGE_MAP = {
-        "video": VideoStage,
-        "scene": SceneDetectionStage,
-        "speech": SpeechStage,
-        "ocr": OCRStage,
-        "vision": VisionStage,
-        "llm": LLMStage,
-        "embedding": EmbeddingStage,
-        "search": SearchIndexStage,
-        "render": RenderStage,
-    }
+    @staticmethod
+    def get_stage_map() -> Dict[str, Any]:
+        return StageRegistry.list_stages()
 
     @staticmethod
     def build_pipeline(config: Dict[str, Any]) -> PipelineOrchestrator:
         """Build and return the processing pipeline."""
         pipeline = PipelineOrchestrator()
-        for stage_cls in [
-            VideoStage,
-            SceneDetectionStage,
-            SpeechStage,
-            OCRStage,
-            VisionStage,
-            LLMStage,
-            EmbeddingStage,
-            SearchIndexStage,
-            RenderStage,
-        ]:
-            pipeline.register_stage(stage_cls())
+        default_order = ["video", "scene", "speech", "ocr", "vision", "llm", "embedding", "search_index", "render"]
+        for name in default_order:
+            cls = StageRegistry.get(name)
+            if cls:
+                pipeline.register_stage(cls())
 
         if config.get("output_dir"):
             pipeline.set_checkpoint_dir(Path(config["output_dir"]) / ".checkpoints")
@@ -61,11 +35,15 @@ class PipelineService:
         return pipeline
 
     @staticmethod
+    def list_stages() -> List[str]:
+        return list(StageRegistry.list_stages())
+
+    @staticmethod
     def build_partial_pipeline(stage_names: List[str]) -> PipelineOrchestrator:
         """Build a pipeline with a subset of stages."""
         pipeline = PipelineOrchestrator()
         for name in stage_names:
-            cls = PipelineService.STAGE_MAP.get(name)
+            cls = StageRegistry.get(name)
             if cls:
                 pipeline.register_stage(cls())
         return pipeline
@@ -112,12 +90,12 @@ class PipelineService:
         resume: bool = False,
     ) -> PipelineContext:
         """Execute the pipeline with provider setup."""
-        ProviderService.register_defaults(ctx.config)
+        ProviderRegistry.register_defaults()
         try:
             result = await pipeline.run(ctx, resume_from="video" if resume else None)
             return result
         finally:
-            await ProviderService.close_all()
+            await ProviderRegistry.close_all()
 
     @staticmethod
     def run_sync(pipeline: PipelineOrchestrator, ctx: PipelineContext) -> PipelineContext:

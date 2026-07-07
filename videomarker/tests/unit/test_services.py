@@ -36,5 +36,5 @@ class TestMediaService:
 class TestPipelineServiceConfig:
     def test_stage_map_completeness(self):
         from vdoc.services.pipeline_service import PipelineService
-        expected = {"video", "scene", "speech", "ocr", "vision", "llm", "embedding", "search", "render"}
-        assert set(PipelineService.STAGE_MAP) == expected
+        expected = {"video", "scene", "speech", "ocr", "vision", "llm", "embedding", "search_index", "render"}
+        assert set(PipelineService.list_stages()) == expected

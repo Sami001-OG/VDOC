@@ -106,6 +106,28 @@ class ProviderRegistry:
         return name in cls._factories
 
     @classmethod
+    def register_defaults(cls) -> None:
+        """Register all default providers if not already registered."""
+        if not cls.is_registered("video"):
+            from vdoc.providers.video.ffmpeg import FFmpegVideoProvider
+            cls.register("video", FFmpegVideoProvider)
+        if not cls.is_registered("llm"):
+            from vdoc.providers.llm.openai_compatible import OpenAICompatibleProvider
+            cls.register("llm", OpenAICompatibleProvider)
+        if not cls.is_registered("speech"):
+            from vdoc.providers.speech.whisper import WhisperSpeechProvider
+            cls.register("speech", WhisperSpeechProvider)
+        if not cls.is_registered("vision"):
+            from vdoc.providers.vision.openai_vision import OpenAIVisionProvider
+            cls.register("vision", OpenAIVisionProvider)
+        if not cls.is_registered("ocr"):
+            from vdoc.providers.ocr.paddle import PaddleOCRProvider
+            cls.register("ocr", PaddleOCRProvider)
+        if not cls.is_registered("embedding"):
+            from vdoc.providers.embedding.sentence import SentenceEmbeddingProvider
+            cls.register("embedding", SentenceEmbeddingProvider)
+
+    @classmethod
     async def health_check_all(cls) -> Dict[str, bool]:
         """Run health checks on all initialized providers (#23)."""
         results: Dict[str, bool] = {}

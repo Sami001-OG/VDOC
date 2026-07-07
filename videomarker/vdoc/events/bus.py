@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,10 @@ class PipelineEvent:
             self.timestamp = time.time()
 
 
-EventHandler = Callable[[PipelineEvent], None]
+EventHandler = Union[
+    Callable[[PipelineEvent], None],
+    Callable[[PipelineEvent], Any],
+]
 
 
 class EventBus:
@@ -56,12 +61,12 @@ class EventBus:
             handlers.remove(handler)
 
     def emit(self, event: PipelineEvent) -> None:
-        """Emit an event to all subscribed handlers."""
-        for handler in self._wildcard_handlers:
-            self._safe_call(handler, event)
-        for handler in self._handlers.get(event.name, []):
-            self._safe_call(handler, event)
-        for handler in self._handlers.get(f"{event.stage}:{event.name}", []):
+        """Emit an event to all subscribed handlers (sync and async)."""
+        all_handlers = []
+        all_handlers.extend(self._wildcard_handlers)
+        all_handlers.extend(self._handlers.get(event.name, []))
+        all_handlers.extend(self._handlers.get(f"{event.stage}:{event.name}", []))
+        for handler in all_handlers:
             self._safe_call(handler, event)
 
     def clear(self) -> None:
@@ -72,7 +77,9 @@ class EventBus:
     @staticmethod
     def _safe_call(handler: EventHandler, event: PipelineEvent) -> None:
         try:
-            handler(event)
+            result = handler(event)
+            if inspect.isawaitable(result):
+                asyncio.ensure_future(result)
         except Exception as e:
             logger.warning("Event handler %s failed: %s", getattr(handler, "__name__", handler), e)
 

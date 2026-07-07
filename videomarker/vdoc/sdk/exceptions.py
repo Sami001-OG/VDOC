@@ -29,3 +29,18 @@ class ValidationError(VdocError):
 class RendererError(VdocError):
     """Raised during rendering."""
     pass
+
+
+class PluginError(VdocError):
+    """Raised when a plugin fails to load or execute."""
+    pass
+
+
+class CacheError(VdocError):
+    """Raised when cache operations fail."""
+    pass
+
+
+class StageError(VdocError):
+    """Raised when a pipeline stage fails."""
+    pass

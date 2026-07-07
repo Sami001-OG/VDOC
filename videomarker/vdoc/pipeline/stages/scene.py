@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, List
+from typing import List
 
 from scenedetect import ContentDetector, open_video, SceneManager
 
+from vdoc.models.document import Scene
 from vdoc.pipeline.base import PipelineContext, PipelineStage
 
 logger = logging.getLogger(__name__)
@@ -27,24 +28,24 @@ class SceneDetectionStage(PipelineStage):
         scene_manager.detect_scenes(video)
         scene_list = scene_manager.get_scene_list()
 
-        scenes = []
+        scenes: List[Scene] = []
         for i, (start, end) in enumerate(scene_list):
-            scenes.append({
-                "id": f"scene_{i+1:03d}",
-                "number": i + 1,
-                "start_time": start.get_seconds(),
-                "end_time": end.get_seconds(),
-                "confidence": 0.9,
-            })
+            scenes.append(Scene(
+                id=f"scene_{i+1:03d}",
+                number=i + 1,
+                start_time=start.get_seconds(),
+                end_time=end.get_seconds(),
+                confidence=0.9,
+            ))
 
         if not scenes:
-            scenes.append({
-                "id": "scene_001",
-                "number": 1,
-                "start_time": 0.0,
-                "end_time": ctx.video_metadata.get("duration", 0),
-                "confidence": 1.0,
-            })
+            scenes.append(Scene(
+                id="scene_001",
+                number=1,
+                start_time=0.0,
+                end_time=ctx.video_metadata.get("duration", 0),
+                confidence=1.0,
+            ))
 
         ctx.scenes = scenes
         logger.info("Detected %d scenes", len(scenes))

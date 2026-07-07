@@ -14,7 +14,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 
 from vdoc.config.manager import ConfigManager
-from vdoc.services import PipelineService, ProviderService
+from vdoc.services import PipelineService
 
 app = typer.Typer(name="vdoc", help="Video → Document. Structured. Searchable. Semantic.")
 console = Console()
@@ -113,7 +113,7 @@ def run(
     output: Optional[Path] = typer.Option(None, "--output", "-o"),
 ) -> None:
     """Run specific pipeline stage(s) on a video."""
-    known = set(PipelineService.STAGE_MAP)
+    known = set(PipelineService.list_stages())
     unknown = [s for s in stages if s not in known]
     if unknown:
         console.print(f"[red]Unknown stage(s):[/red] {', '.join(unknown)}")
